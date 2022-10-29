@@ -1,0 +1,12 @@
+# IntelliJ project files
+.idea
+*.iml
+out
+gen
+
+# Virtual env
+venv
+
+# Secrets
+.streamlit/secrets.toml
+key-erydo.pem
