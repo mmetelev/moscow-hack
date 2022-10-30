@@ -2,11 +2,16 @@ import streamlit as st
 
 
 def main():
-    st.info("Здесь будет форма обработки файла")
+    st.sidebar.info("БЛОК №2: Поиск соответствий в справочниках")
     st.markdown("#### Пример:")
+    if "uploaded_df" in st.session_state.keys():
+        df = st.session_state["uploaded_df"]
+        st.dataframe(df)
+    else:
+        st.warning("Необходимо загрузить файл сметы на странице загрузки")
+
     with st.form("Обработка сметы"):
         proc_type = st.radio("Выбор ТЗ или КПГЗ", ("ТЗ", "КПГЗ"))
-        proc_list = st.selectbox("Выбор листа сметы для обработки", ["Sheet1", "Sheet2"])
         submit = st.form_submit_button("OK")
 
     if submit:
