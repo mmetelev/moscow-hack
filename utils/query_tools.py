@@ -1,6 +1,7 @@
 def find_column_names(df):
     cols = df.columns
     keywords = ["раздел",
+                "наименование",
                 "шифр",
                 "п/п",
                 "ед. изм.",
@@ -9,16 +10,17 @@ def find_column_names(df):
     result = []
 
     condition_0 = lambda w, col: w == "раздел" and "раздел" in col.lower()
-    condition_1 = lambda w, col: w == "шифр" and "шифр" in col.lower()
-    condition_2 = lambda w, col: w == "п/п" and ("п/п" in col.lower().replace(" ", "") \
+    condition_1 = lambda w, col: w == "наименование" and "наименование" in col.lower()
+    condition_2 = lambda w, col: w == "шифр" and "шифр" in col.lower()
+    condition_3 = lambda w, col: w == "п/п" and ("п/п" in col.lower().replace(" ", "") \
                                                  or "п.п" in col.lower().replace(" ", ""))
-    condition_3 = lambda w, col: w == "ед. изм." and ("ед.изм." in col.lower().replace(" ", "") \
+    condition_4 = lambda w, col: w == "ед. изм." and ("ед.изм." in col.lower().replace(" ", "") \
                                                       or "единиц" in col.lower().replace(" ", "")) \
                                  and "цена" not in col.lower() \
                                  and "кол-во" not in col.lower()
-    condition_4 = lambda w, col: w == "кол-во" and ("количество" in col.lower().replace(" ", "") \
+    condition_5 = lambda w, col: w == "кол-во" and ("количество" in col.lower().replace(" ", "") \
                                                     or "кол-во" in col.lower().replace(" ", ""))
-    condition_5 = lambda w, col: w == "ВСЕГО" and "ВСЕГО" in col
+    condition_6 = lambda w, col: w == "ВСЕГО" and "ВСЕГО" in col
 
     for word in keywords:
         for col in cols:
@@ -27,7 +29,8 @@ def find_column_names(df):
                     or condition_2(word, col) \
                     or condition_3(word, col) \
                     or condition_4(word, col) \
-                    or condition_5(word, col):
+                    or condition_5(word, col) \
+                    or condition_6(word, col):
                 result.append(col) if col not in result else None
     return result
 

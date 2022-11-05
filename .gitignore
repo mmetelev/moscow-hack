@@ -10,3 +10,4 @@ venv
 # Secrets
 .streamlit/secrets.toml
 key-erydo.pem
+/info-server
