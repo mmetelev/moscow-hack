@@ -4,6 +4,7 @@ from sortedcontainers import SortedDict
 
 from utils.streamlit_utils.st_markdown import format_str
 from utils.streamlit_utils.st_constants import PAGE_CONFIG
+from utils.query_tools import find_column_names
 
 st.set_page_config(**PAGE_CONFIG)
 
@@ -57,7 +58,9 @@ def extract_costs(df):
             return 0
 
     try:
-        costs = df.loc[df.iloc[:, 0].str.contains("Итого по разделу") == True,].dropna(axis=1, how='all')
+        patterns = ["Итого по разделу", "Итого по подразделу"]
+        pat = '|'.join(r"\b{}\b".format(x) for x in patterns)
+        costs = df.loc[df.iloc[:, 0].str.contains(pat) == True,].dropna(axis=1, how='all')
         costs = costs.iloc[:, :3]
         costs = drop_na_columns(costs)
 
@@ -85,16 +88,15 @@ def extract_costs(df):
 
 
 def extract_chapters(df):
+    patterns = ["раздел", "подраздел", "Раздел", "Подраздел"]
     try:
-        chapters = df.loc[df.iloc[:, 0].str.lower().str.contains("Раздел") == True,]\
+        pat = '|'.join(r"\b{}\b".format(x) for x in patterns)
+        chapters = df.loc[df.iloc[:, 0].str.lower().str.contains(pat) == True,] \
             .dropna(axis=1, how='all').T.to_dict('list')
-        # chapters = filter_by_chapter(df, ["Раздел", "раздел", "Подраздел", "подраздел"])
-        st.code(chapters)
-        # chapters = chapters.dropna(axis=1, how='all').T.to_dict('list')
         chapters = SortedDict(chapters)
         return chapters
     except Exception as e:
-        print(type(e), e)
+        print(f"[{__name__}]", type(e), e)
         return None
 
 
@@ -121,10 +123,10 @@ def drop_na_columns(df, na_percent=0.5):
     return df
 
 
-def filter_by_chapter(df, chapter_selected):
+def filter_by_chapter(df, col, chapter_selected):
     try:
         pat = '|'.join(r"\b{}\b".format(x) for x in chapter_selected)
-        df = df[df['Раздел'].str.contains(pat)]
+        df = df[df[col].str.contains(pat)]
         return df
     except Exception as e:
         print(type(e), e)
@@ -168,13 +170,25 @@ def find_columns(df):
     return (row1, col1), (row2, col2), (row3, col3)
 
 
+def mark_key_jobs(df, col, chapters):
+    patterns = ["мусора",
+                "возвратные материалы",
+                "пуско-наладочные"]
+    try:
+        pat = '|'.join(r"\b{}\b".format(x) for x in patterns)
+        df["Ключевая работа"] = df.loc[df[col].str.lower().str.contains(pat) == False,]
+        return df
+    except Exception as e:
+        print(f"[{__name__}]", type(e), e)
+        return None
+
+
 def process_xls(xls, sheet):
     df = pd.read_excel(xls, sheet_name=sheet)
     df = df.dropna(axis=1, how='all')
 
     # Извлечем названия разделов в словарь с сортировкой по индексу
     chapters = extract_chapters(df)
-    st.warning(chapters)
 
     # Извлечем стоимость по каждому из разделов
     costs = extract_costs(df)
@@ -183,30 +197,43 @@ def process_xls(xls, sheet):
     (row1, col1), (row2, col2), (row3, col3) = find_columns(df)
 
     if not row2 is None:
+        # Удаляем пустые строки и строки разбивки под работой
+        df_new = df.loc[~df[col2].isna() & df[col1].apply(lambda x: len(str(x)) > 6)]
+        # Заполняем колонку с итоговым значением стоимости по последнему (итоговому) значению
+        df_new.loc[:, col3] = df[col3].fillna(method='bfill')
+        # Удалим все пустые столбцы
+        df_new = df_new.dropna(axis=1, how='all')
         # Сохраним названия колонок из найденной шапки
-        columns = df.iloc[row2].tolist()
+        columns = [str(c).replace("\n", " ").replace("- ", "").strip() \
+                   for c in df_new.iloc[0].tolist()]
 
         # Вычислим ширину таблици по последнему столбцу с итоговой расценкой
         num_columns = list(df.columns).index(col3)
-
-        # Удаляем пустые строки и строки разбивки под работой
-        df_new = df.loc[~df[col2].isna() & df[col1].apply(lambda x: len(str(x)) > 6)]
-
-        # Заполняем колонку с итоговым значением стоимости по последнему (итоговому) значению
-        df_new[col3] = df[col3].fillna(method='bfill')
 
         # Меняем названия колонок на названия из шапки
         df_new.columns = columns
 
         # Форматируем таблицу: удаляем старую шапку и пустые столбцы
-        df_new = df_new.iloc[1:, :num_columns + 2]
+        df_new = df_new.iloc[1:, :num_columns + 1]
         df_new = df_new.dropna(axis=1, how='all')
         df_new = drop_na_columns(df_new)
 
         if chapters is not None:
             df_new = insert_chapters(chapters, df_new)
 
-        return df_new, costs, chapters
+        return df, df_new, costs, chapters
+
+
+def _crop_columns(df):
+    try:
+        if st.checkbox("Отображать в сокращенном формате"):
+            cols = find_column_names(df)
+            df = df.reset_index(drop=True).loc[:, cols]
+            return df
+        return df
+    except Exception as e:
+        print(f"[{__name__}]", type(e), e)
+        return df
 
 
 def main():
@@ -214,6 +241,8 @@ def main():
     st_title("Загрузка файла сметы")
 
     file_uploaded = st.file_uploader("Загрузите смету", type=["xls", "xlsx"], help="Файл формата .xls или .xlsx")
+    if st.checkbox("Использовать тестовый файл"):
+        file_uploaded = "./data/example.xlsx"
 
     if file_uploaded is not None:
         xls_file = pd.ExcelFile(file_uploaded)
@@ -222,9 +251,13 @@ def main():
         sheet_with_data = st.selectbox("Выберите лист, который содержит смету",
                                        xls_sheets,
                                        disabled=choice_disabled)
+        df_raw, df, costs, chapters = process_xls(file_uploaded, sheet_with_data)
+
+        with st.expander("Необработанные данные"):
+            st.dataframe(df_raw)
+
         st.markdown("----")
         st_title("Обработка файла сметы")
-        df, costs, chapters = process_xls(file_uploaded, sheet_with_data)
 
         if costs is not None:
             st.info("Разбивка затрат по разделам")
@@ -235,22 +268,26 @@ def main():
         if chapters is None:
             st.code(f"Колонка с указанием раздела работ не найдена")
         else:
-            chapter_names = [k[0].replace("Раздел: ", "") for k in chapters.values()]
+            col_r, col_sr = 'Раздел', "Подраздел"
+            chapter_names = [k[0].replace(f"{col_r}: ", "").replace(f"{col_sr}: ", "") for k in chapters.values()]
             chapter_selected = st.multiselect("Выберите разделы для отображения", chapter_names, default=chapter_names)
-            df = filter_by_chapter(df, chapter_selected)
+            df_ = filter_by_chapter(df, col_r, chapter_selected)
+            df = df_ if df_ is not None else filter_by_chapter(df, col_sr, chapter_selected)
 
-        st.dataframe(df.head(100))
-        csv = convert_df(df)
+        if df is not None:
+            df = _crop_columns(df)
+            st.dataframe(df.head(100))
+            csv = convert_df(df)
 
-        # Сохраняем файл на время сессии до загрузки нового
-        st.session_state["uploaded_df"] = df
+            # Сохраняем файл на время сессии до загрузки нового
+            st.session_state["uploaded_df"] = df
 
-        df.to_csv("/data/temp.csv", index=False)
-        st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
+            df.to_csv("/data/temp.csv", index=False)
+            st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
 
-        st.markdown("""<a href="http://localhost:8502/PROCESS_FILE" target="_self"> 
-        <img alt="next" src="https://www.pngmart.com/files/3/Next-Button-PNG-HD.png" width=100></a>""",
-                    unsafe_allow_html=True)
+            # st.markdown("""<a href="http://localhost:8502/PROCESS_FILE" target="_self">
+            # <img alt="next" src="https://www.pngmart.com/files/3/Next-Button-PNG-HD.png" width=100></a>""",
+            #             unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
