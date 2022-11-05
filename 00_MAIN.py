@@ -1,11 +1,7 @@
 import streamlit as st
+from utils.streamlit_utils.st_constants import PAGE_CONFIG
 
-st.set_page_config(page_title="web-app", page_icon=":plane:", layout="wide",
-                   menu_items={
-                       'Get Help': 'https://github.com/CyberMaryVer',
-                       'Report a bug': 'https://www.google.com',
-                       'About': "### Erydo"
-                   })
+st.set_page_config(**PAGE_CONFIG)
 
 
 def main():

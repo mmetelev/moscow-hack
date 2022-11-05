@@ -3,6 +3,9 @@ import pandas as pd
 from sortedcontainers import SortedDict
 
 from utils.streamlit_utils.st_markdown import format_str
+from utils.streamlit_utils.st_constants import PAGE_CONFIG
+
+st.set_page_config(**PAGE_CONFIG)
 
 
 @st.experimental_memo
@@ -83,7 +86,11 @@ def extract_costs(df):
 
 def extract_chapters(df):
     try:
-        chapters = df.loc[df.iloc[:, 0].str.contains("Раздел") == True,].dropna(axis=1, how='all').T.to_dict('list')
+        chapters = df.loc[df.iloc[:, 0].str.lower().str.contains("Раздел") == True,]\
+            .dropna(axis=1, how='all').T.to_dict('list')
+        # chapters = filter_by_chapter(df, ["Раздел", "раздел", "Подраздел", "подраздел"])
+        st.code(chapters)
+        # chapters = chapters.dropna(axis=1, how='all').T.to_dict('list')
         chapters = SortedDict(chapters)
         return chapters
     except Exception as e:
@@ -167,6 +174,7 @@ def process_xls(xls, sheet):
 
     # Извлечем названия разделов в словарь с сортировкой по индексу
     chapters = extract_chapters(df)
+    st.warning(chapters)
 
     # Извлечем стоимость по каждому из разделов
     costs = extract_costs(df)
@@ -236,7 +244,13 @@ def main():
 
         # Сохраняем файл на время сессии до загрузки нового
         st.session_state["uploaded_df"] = df
+
+        df.to_csv("/data/temp.csv", index=False)
         st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
+
+        st.markdown("""<a href="http://localhost:8502/PROCESS_FILE" target="_self"> 
+        <img alt="next" src="https://www.pngmart.com/files/3/Next-Button-PNG-HD.png" width=100></a>""",
+                    unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

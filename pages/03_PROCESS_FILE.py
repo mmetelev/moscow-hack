@@ -1,4 +1,10 @@
 import streamlit as st
+import pandas as pd
+import os
+
+from utils.streamlit_utils.st_constants import PAGE_CONFIG, CSV_TEMP_PATH
+
+st.set_page_config(**PAGE_CONFIG)
 
 
 def main():
@@ -6,6 +12,9 @@ def main():
     st.markdown("#### Пример:")
     if "uploaded_df" in st.session_state.keys():
         df = st.session_state["uploaded_df"]
+        st.dataframe(df)
+    elif os.path.exists(CSV_TEMP_PATH):
+        df = pd.read_csv(CSV_TEMP_PATH)
         st.dataframe(df)
     else:
         st.warning("Необходимо загрузить файл сметы на странице загрузки")
