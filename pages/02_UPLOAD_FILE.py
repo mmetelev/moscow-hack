@@ -282,8 +282,11 @@ def main():
             # Сохраняем файл на время сессии до загрузки нового
             st.session_state["uploaded_df"] = df
 
-            df.to_csv("/data/temp.csv", index=False)
-            st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
+            try:
+                df.to_csv("./data/temp.csv", index=False)
+                st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
+            except Exception as e:
+                st.code(type(e), e)
 
             # st.markdown("""<a href="http://localhost:8502/PROCESS_FILE" target="_self">
             # <img alt="next" src="https://www.pngmart.com/files/3/Next-Button-PNG-HD.png" width=100></a>""",
