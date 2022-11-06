@@ -1,6 +1,5 @@
 import re
 
-
 def find_columns(df):
     col_to_find1 = 'Наименование работ и затрат'
     col_to_find2 = 'Шифр'
