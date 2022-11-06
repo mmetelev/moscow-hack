@@ -4,7 +4,7 @@ import pandas as pd
 from utils.streamlit_utils.st_markdown import format_str
 from utils.streamlit_utils.st_constants import PAGE_CONFIG
 from utils.query_tools import find_column_names
-from utils.pattern_search import find_columns
+from utils.pattern_search import find_columns, find_address
 from utils.chapter_search import filter_by_chapter, extract_chapters, extract_costs, insert_chapters
 
 st.set_page_config(**PAGE_CONFIG)
@@ -31,7 +31,10 @@ def process_xls(xls, sheet):
     costs = extract_costs(df)
 
     # Найдем расположение шапки таблицы в смете по названию двух ключевых колонок
-    (row1, col1), (row2, col2), (row3, col3) = find_columns(df)
+    (row1, col1), (row2, col2), (row3, col3), (row4, col4) = find_columns(df)
+
+    # Найдем адрес
+    address = find_address(df, row4, col4)
 
     if not row2 is None:
         # Удаляем пустые строки и строки разбивки под работой
@@ -58,14 +61,21 @@ def process_xls(xls, sheet):
         if chapters is not None:
             df_new = insert_chapters(chapters, df_new)
 
-        return df, df_new, costs, chapters
+        return df, df_new, costs, chapters, address
 
 
-def _crop_columns(df):
+def _crop_columns(df, use_new_names=False):
+    columns = ["раздел", "наименование", "шифр", "ед. изм.", "кол-во", "ВСЕГО"]
+    columns = [c.upper() for c in columns]
     try:
         if st.checkbox("Отображать в сокращенном формате"):
             cols = find_column_names(df)
             df = df.reset_index(drop=True).loc[:, cols]
+            # удаление строковых значений из колонок с числовыми значениями
+            df.iloc[:, 3] = df.iloc[:, 3].apply(pd.to_numeric, errors='coerce')
+            df.iloc[:, -1] = df.iloc[:, -1].apply(pd.to_numeric, errors='coerce')
+            # замена названий колонок, если указана данная опция
+            df.columns = columns if use_new_names else df.columns
             return df
         return df
     except Exception as e:
@@ -81,7 +91,7 @@ def main():
     if st.checkbox("Использовать тестовый файл"):
         file_uploaded = "./data/example.xlsx"
 
-    elif st.checkbox("Использовать загруженный файл") and "uploaded_df" in st.session_state.keys():
+    elif st.checkbox("Использовать последний загруженный файл") and "uploaded_df" in st.session_state.keys():
         file_uploaded = "./data/temp.xlsx"
 
     if file_uploaded is not None:
@@ -96,7 +106,10 @@ def main():
         sheet_with_data = st.selectbox("Выберите лист, который содержит смету",
                                        xls_sheets,
                                        disabled=choice_disabled)
-        df_raw, df, costs, chapters = process_xls(file_uploaded, sheet_with_data)
+        df_raw, df, costs, chapters, address = process_xls(file_uploaded, sheet_with_data)
+
+        if address is not None:
+            st.sidebar.success(f"АДРЕС: {address}")
 
         with st.expander("Необработанные данные"):
             st.dataframe(df_raw)
@@ -114,29 +127,26 @@ def main():
             st.code(f"Колонка с указанием раздела работ не найдена")
         else:
             col_r, col_sr = 'Раздел', "Подраздел"
-            chapter_names_raw = [k[0] for k in chapters.values()]
-            chapter_names = [k[0].replace(f"{col_r}: ", "")
-                                 .replace(f"{col_sr}: ", "")
-                                 .replace(f"{col_r}:", "")
-                                 .replace(f"{col_sr}:", "")
-                             for k in chapter_names_raw]
-
-            format_chapter = lambda c: c.replace(f"{col_r}: ", "") \
-                .replace(f"{col_sr}: ", "") \
-                .replace(f"{col_r}:", "") \
-                .replace(f"{col_sr}:", "")
+            chapter_names_raw = [k[0].replace(f"{col_r}: ", "") \
+                                     .replace(f"{col_sr}: ", "") \
+                                     .replace(f"{col_r}:", "") \
+                                     .replace(f"{col_sr}:", "") for k in chapters.values()]
 
             chapter_selected = st.multiselect("Выберите разделы для отображения",
                                               chapter_names_raw,
-                                              format_func=format_chapter,
+                                              # format_func=format_chapter,
                                               default=chapter_names_raw)
-            df_ = filter_by_chapter(df, col_r, chapter_selected)
-            df = df_ if df_ is not None else filter_by_chapter(df, col_r, chapter_selected)
-            # df = df if df_ is not None else df
+            st.code(chapter_selected)
+            df_ = filter_by_chapter(df, chapter_selected)
+            df = df_ if df_ is not None else df
 
         if df is not None:
             df = _crop_columns(df)
-            st.dataframe(df.head(100))
+
+            try:
+                st.dataframe(df.head(100), use_container_width=True)
+            except st.StreamlitAPIException:
+                st.code(df.head(100))
             csv = convert_df(df)
 
             # Сохраняем файл на время сессии до загрузки нового

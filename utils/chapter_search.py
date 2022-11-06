@@ -1,4 +1,3 @@
-import pandas as pd
 import re
 from sortedcontainers import SortedDict
 
@@ -104,6 +103,8 @@ def insert_chapters(chapters, df):
         df.columns = [str(col).strip().replace('\n', '') if not str(col) == 'nan' else str(idx)
                       for idx, col in enumerate(df.columns)]
         df = df[df.columns[:-1].insert(0, df.columns[-1])]
+        df = _delete_substrings_from_column(df, col="Раздел", substrings=["Раздел:", "Подраздел:",
+                                                                          "Раздел: ", "Подраздел: "])
         return df
     except Exception as e:
         print(type(e), e)
@@ -135,7 +136,7 @@ def _clean_chapter_list(chapter_list, verbose=True):
     return chapter_list
 
 
-def filter_by_chapter(df, col, chapter_selected):
+def filter_by_chapter(df, chapter_selected):
     try:
         if type(chapter_selected) is not list:
             chapter_selected = [chapter_selected, ]
