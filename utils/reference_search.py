@@ -1,4 +1,5 @@
 from nltk import ngrams
+import pandas as pd
 
 TSN_PATH = "./data/tsn.csv"
 SN_PATH = "./data/sn.csv"
@@ -29,26 +30,31 @@ def find_in_reference_book(job_name, job_id=None, df_reference=None,
     # print(f"{job_name.upper()} | patterns: {patterns} | idx: {job_id}")
 
     try:
-        res_name = df_reference.loc[df_reference[col_job_name].
-                                        str.lower().str.contains(pat) == True,].shape[0]
-        res_id = df_reference.loc[df_reference[col_job_id].
-                                      str.lower().str.contains(job_id) == True,].shape[0]
-        if res_name > 0 and patterns != ['']:
-            results = df_reference.loc[df_reference[col_job_name].
-                                           str.lower().str.contains(pat) == True,]
-            results = results.loc[results[col_job_name].
-                                      str.lower().str.contains(job_name_filter) == True]
+        results_by_pattern = df_reference.loc[df_reference[col_job_name].str.lower().str.contains(pat) == True,]
+        results_by_id = df_reference.loc[df_reference[col_job_id].str.lower().str.contains(job_id) == True,]
+
+        if results_by_pattern.shape[0] > 0 and patterns != ['']:
+            results1 = results_by_pattern.loc[results_by_pattern[col_job_name].str.lower()
+                                                  .str.contains(job_name_filter) == True]
+            results2 = df_reference.loc[df_reference[col_job_name].str.lower().str.contains(job_name.lower())]
+
             # if job_name_filter is not None:
             #     results = results.loc[job_name_filter, col_job_name]
+
+            results = pd.concat((results1, results2))
+            results = results.drop_duplicates()[col_result].unique()
+            return results
+
+        elif results_by_pattern.shape[0] == 0:
+            results = df_reference.loc[df_reference[col_job_name].str.lower().str.contains(job_name.lower())]
             results = results[col_result].unique()
             return results
-        if res_id > 0:
+
+        if results_by_id.shape[0] > 0:
             print(f"{job_name.upper()} | id: {job_id}")
-            results = df_reference.loc[df_reference["Шифр расценки и коды ресурсов"].
-                                           str.lower().str.contains(job_id) == True,]
-            results = results.loc[results[col_job_name].
-                                      str.lower().str.contains(job_name_filter) == True]
+            results = results_by_id.loc[results_by_id[col_job_name].str.lower().str.contains(job_name_filter) == True]
             results = results[col_result].unique()
             return results
+
     except Exception as e:
         print(f"ERROR: {e} | patterns: {patterns}")

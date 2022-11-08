@@ -2,13 +2,12 @@
 pandas
 tqdm
 numpy
-boto3
 dnspython
 
 # FOR STREAMLIT
 streamlit
-streamlit-authenticator
-protobuf
+# streamlit-authenticator
+# protobuf
 
 # FOR XLS, XLSX
 xlrd
@@ -24,17 +23,10 @@ python-multipart
 # google_auth_oauthlib
 # pip~=22.0.2
 toml
-wheel
-cryptography
-tornado
-keyring
-setuptools
-future
-botocore
 requests
 
 # OTHER
-scipy
+# scipy
 pydantic
 nltk
 json2table
