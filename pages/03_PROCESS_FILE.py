@@ -8,13 +8,19 @@ from utils.search_tools import find_matches
 st.set_page_config(**PAGE_CONFIG)
 
 
-def mark_key_jobs(df, col, chapters):
+def mark_key_jobs(df, col=None):
+    col = 'Наименование работ и затрат' if col is None else col
+
     patterns = ["мусора",
                 "возвратные материалы",
                 "пуско-наладочные"]
+
+    def _find_pattern(s: str, pat: list):
+        in_string = any(p in s for p in pat)
+        return not in_string
+
     try:
-        pat = '|'.join(r"\b{}\b".format(x).lower() for x in patterns)
-        df["Ключевая работа"] = df.loc[df[col].str.lower().str.contains(pat) == False,]
+        df["key_job"] = df[col].apply(lambda x: _find_pattern(str(x), patterns))
         return df
     except Exception as e:
         print(f"[{__name__}]", type(e), e)
@@ -74,7 +80,6 @@ def find_all_jobs(df_smeta, df_jobs, col_smeta=None, col_jobs=None):
 
 def main():
     st.sidebar.info("БЛОК №2: Поиск соответствий в справочниках")
-    st.markdown("#### Пример:")
     if "uploaded_df" in st.session_state.keys():
         df = st.session_state["uploaded_df"]
         costs = st.session_state["costs_df"]
@@ -104,8 +109,23 @@ def main():
 
         if jobs_df is not None:
             with st.expander("Результат"):
-                df = find_all_jobs(df, jobs_df)
+                try:
+                    df_ = find_all_jobs(df, jobs_df)
+                    df = df_ if df_.shape[0] > 1 else df
+                except Exception as e:
+                    st.code(f"Ошибка: {type(e)}, {e}")
+
+                try:
+                    df_ = mark_key_jobs(df)
+                    df = df_ if df_.shape[0] > 1 else df
+                except Exception as e:
+                    st.code(f"Ошибка: {type(e)}, {e}")
+
                 st.dataframe(df, use_container_width=True)
+
+            save_state = st.checkbox("Использовать для редактирования")
+            if save_state:
+                st.session_state["processed_df"] = df
 
 
 if __name__ == "__main__":

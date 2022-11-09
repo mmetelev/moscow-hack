@@ -91,7 +91,11 @@ def main():
 
             try:
                 df.to_csv("./data/temp.csv", index=False)
-                st.download_button("Скачать файл в формате .csv", csv, "smeta.csv", "text/csv", key='download-csv')
+                st.sidebar.download_button("Скачать файл в формате .csv",
+                                           csv,
+                                           "smeta.csv",
+                                           "text/csv",
+                                           key='download-csv')
             except Exception as e:
                 st.code(type(e), e)
 
