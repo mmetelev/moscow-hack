@@ -1,7 +1,20 @@
 version: "3.9"
 services:
-  streamlit:
+  api:
     build: .
     ports:
-      - "8000:8000"
-      - "8501:8501"
+      - "8080:8080"
+      - "8503:8503"
+    container_name: streamlit-fastapi
+    environment:
+      PORT: 8080 8503
+  db:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=erydo
+      - POSTGRES_PASSWORD=erydo
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data

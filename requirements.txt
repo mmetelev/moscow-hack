@@ -30,3 +30,5 @@ requests
 pydantic
 nltk
 json2table
+python_Levenshtein
+fuzzywuzzy

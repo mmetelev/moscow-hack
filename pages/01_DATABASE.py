@@ -9,7 +9,7 @@ SN_PATH = "./data/sn.csv"
 
 def main():
     st.sidebar.info("Справочники ТСН и СН")
-    spravochnik = st.sidebar.radio("Выберите справочник для отображения", ("ТСН", "СН", "ТСН+СН"))
+    spravochnik = st.sidebar.radio("Выберите справочник для отображения", ("ТСН", "СН",))
     if spravochnik == "ТСН":
         df = pd.read_csv(TSN_PATH)
         st.dataframe(df)
